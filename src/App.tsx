@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Navigation,
@@ -24,10 +24,13 @@ import {
 } from 'lucide-react';
 import { AIRPORTS, INITIAL_FLIGHTS } from './constants';
 import { Flight, CabinClass, NotificationItem } from './types';
-import FlightTrackerMap from './components/FlightTrackerMap';
-import CabinSeatSelector from './components/CabinSeatSelector';
-import CheckoutModal from './components/CheckoutModal';
-import AiCopilot from './components/AiCopilot';
+
+const FlightTrackerMap = lazy(() => import('./components/FlightTrackerMap'));
+const CabinSeatSelector = lazy(() => import('./components/CabinSeatSelector'));
+const CheckoutModal = lazy(() => import('./components/CheckoutModal'));
+const AiCopilot = lazy(() => import('./components/AiCopilot'));
+const FlightSearchWidget = lazy(() => import('./components/FlightSearchWidget'));
+const AuthModal = lazy(() => import('./components/AuthModal'));
 
 export default function App() {
   // Navigation Tabs State: 'dashboard' | 'flights' | 'schedule' | 'support'
@@ -81,6 +84,14 @@ export default function App() {
 
   // Checkout overlay states
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+
+  // Auth states
+  const [user, setUser] = useState<{name: string, email: string} | null>(() => {
+    const saved = sessionStorage.getItem('velox_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
 
   // Static alerts list
   const [systemAlert, setSystemAlert] = useState<string | null>(null);
@@ -276,8 +287,9 @@ export default function App() {
             {/* Live Notifications bell badge */}
             <div className="relative">
               <button
+                aria-label="Toggle notifications"
                 onClick={() => setShowNotificationPanel(!showNotificationPanel)}
-                className="p-2 mr-2 text-on-surface-variant hover:text-primary transition-all rounded-lg hover:bg-surface-container/60 border border-transparent hover:border-outline-variant/30 relative"
+                className="p-2 mr-2 text-on-surface-variant hover:text-primary transition-all rounded-lg hover:bg-surface-container/60 border border-transparent hover:border-outline-variant/30 relative focus:outline-none focus:ring-2 focus:ring-primary-container"
               >
                 <Bell className="w-5 h-5" />
                 {notifications.length > 0 && (
@@ -326,17 +338,53 @@ export default function App() {
               )}
             </div>
 
-            {/* Simulated interactive Pilot Avatar Headshot */}
-            <div className="flex items-center gap-2 relative group hidden sm:flex">
-              <img
-                alt="Airline Captain Headshot"
-                className="w-10 h-10 rounded-full border border-primary-container/40 group-hover:border-primary-container shadow-[0_0_8px_rgba(61,255,160,0.1)] transition-all object-cover cursor-pointer"
-                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=120&auto=format&fit=crop"
-              />
-              <div className="text-left leading-none">
-                <div className="text-xs font-bold text-primary">Capt. K. Sene</div>
-                <div className="text-[9px] text-primary-container font-mono uppercase tracking-wider">Lufthansa crew</div>
-              </div>
+            {/* Simulated interactive Pilot Avatar Headshot / Authentication */}
+            <div className="relative hidden sm:block">
+              {user ? (
+                <div 
+                  className="flex items-center gap-2 relative group cursor-pointer"
+                  onClick={() => setShowProfileMenu(!showProfileMenu)}
+                >
+                  <img
+                    alt="Current User"
+                    className="w-10 h-10 rounded-full border border-primary-container/40 group-hover:border-primary-container shadow-[0_0_8px_rgba(61,255,160,0.1)] transition-all object-cover"
+                    src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=120&auto=format&fit=crop"
+                  />
+                  <div className="text-left leading-none">
+                    <div className="text-xs font-bold text-primary">{user.name}</div>
+                    <div className="text-[9px] text-primary-container font-mono uppercase tracking-wider">Cleared Crew</div>
+                  </div>
+
+                  {showProfileMenu && (
+                    <div className="absolute right-0 top-12 mt-2 w-48 bg-surface-container border border-outline-variant rounded-xl shadow-xl p-2 z-50">
+                      <div className="px-2 pb-2 mb-2 border-b border-outline-variant/30 text-[10px] text-on-surface-variant break-all">
+                        {user.email}
+                      </div>
+                      <button className="w-full text-left px-2 py-1.5 text-xs text-primary hover:bg-primary-container/10 rounded font-mono">Profile Details</button>
+                      <button className="w-full text-left px-2 py-1.5 text-xs text-primary hover:bg-primary-container/10 rounded font-mono">My Bookings</button>
+                      <div className="h-[1px] bg-outline-variant/30 my-1" />
+                      <button 
+                        onClick={() => {
+                          sessionStorage.removeItem('velox_auth_token');
+                          sessionStorage.removeItem('velox_user');
+                          setUser(null);
+                          setShowProfileMenu(false);
+                        }}
+                        className="w-full text-left px-2 py-1.5 text-xs text-error hover:bg-error-container/20 rounded font-mono"
+                      >
+                        Logout Session
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <button 
+                  onClick={() => setIsAuthModalOpen(true)}
+                  className="px-4 py-2 border border-primary-container/50 rounded-lg text-xs font-mono font-bold text-primary-container hover:bg-primary-container/10 transition-all shadow-[0_0_8px_rgba(61,255,160,0.1)] uppercase tracking-wider"
+                >
+                  Login / Register
+                </button>
+              )}
             </div>
 
           </div>
@@ -405,121 +453,22 @@ export default function App() {
               <div className="flex flex-col gap-6">
                 
                 {/* Booking Flight Route Form */}
-                <section className="glass-card rounded-[24px] p-5 diagonal-grid border border-primary-container/20">
-                  <div className="flex flex-col gap-4">
-                    
-                    {/* Air Route selector block */}
-                    <div className="flex justify-between items-center bg-surface-container-lowest border border-outline-variant/40 p-4 rounded-xl relative">
-                      
-                      {/* FROM SELECTION DROPDOWN */}
-                      <div className="relative">
-                        <span className="text-[9px] font-mono uppercase tracking-wider text-on-surface-variant block mb-1">
-                          FROM
-                        </span>
-                        <button
-                          onClick={() => setDropdownFromOpen(!dropdownFromOpen)}
-                          className="text-2xl font-extrabold text-primary font-mono tracking-tight cursor-pointer hover:text-primary-container transition-colors"
-                        >
-                          {fromAirport}
-                        </button>
-                        {dropdownFromOpen && (
-                          <div className="absolute left-0 mt-2 w-48 bg-surface-container border border-outline-variant rounded-xl shadow-xl p-2 z-30 space-y-1 max-h-48 overflow-y-auto">
-                            {AIRPORTS.map((air) => (
-                              <button
-                                key={air.code}
-                                onClick={() => {
-                                  setFromAirport(air.code);
-                                  setDropdownFromOpen(false);
-                                  addNotification('Departure Selected', `Departure set to ${air.city} (${air.code})`, 'info');
-                                }}
-                                className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-mono hover:bg-primary-container/10 hover:text-primary-container transition-all"
-                              >
-                                {air.code} - {air.city}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* SWAP ROUTE TOGGLER BUTTON */}
-                      <button
-                        onClick={handleSwapRoute}
-                        className="p-1.5 rounded-full bg-primary-container text-surface-container-lowest hover:brightness-110 active:scale-90 transition-all shadow-[0_0_12px_rgba(61,255,160,0.3)]"
-                        title="Swap Route Direction"
-                      >
-                        <ArrowLeftRight className="w-4 h-4" />
-                      </button>
-
-                      {/* TO SELECTION DROPDOWN */}
-                      <div className="text-right relative">
-                        <span className="text-[9px] font-mono uppercase tracking-wider text-on-surface-variant block mb-1">
-                          TO
-                        </span>
-                        <button
-                          onClick={() => setDropdownToOpen(!dropdownToOpen)}
-                          className="text-2xl font-extrabold text-primary font-mono tracking-tight cursor-pointer hover:text-primary-container transition-colors"
-                        >
-                          {toAirport}
-                        </button>
-                        {dropdownToOpen && (
-                          <div className="absolute right-0 mt-2 w-48 bg-surface-container border border-outline-variant rounded-xl shadow-xl p-2 z-30 space-y-1 max-h-48 overflow-y-auto">
-                            {AIRPORTS.map((air) => (
-                              <button
-                                key={air.code}
-                                onClick={() => {
-                                  setToAirport(air.code);
-                                  setDropdownToOpen(false);
-                                  addNotification('Arrival Selected', `Arrival destination set to ${air.city} (${air.code})`, 'info');
-                                }}
-                                className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-mono hover:bg-primary-container/10 hover:text-primary-container transition-all"
-                              >
-                                {air.code} - {air.city}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                    </div>
-
-                    {/* Dates blocks configuration */}
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div className="bg-surface-container-low p-2.5 rounded-xl border border-outline-variant/20">
-                        <span className="text-[9px] font-mono uppercase text-on-surface-variant block mb-0.5">Departure Date</span>
-                        <input
-                          type="text"
-                          value={departureDate}
-                          onChange={(e) => setDepartureDate(e.target.value)}
-                          className="font-bold text-primary font-sans bg-transparent border-none p-0 w-full focus:ring-0 leading-tight focus:outline-none"
-                        />
-                      </div>
-                      <div className="bg-surface-container-low p-2.5 rounded-xl border border-outline-variant/20">
-                        <span className="text-[9px] font-mono uppercase text-on-surface-variant block mb-0.5">Return Date</span>
-                        <input
-                          type="text"
-                          value={returnDate}
-                          onChange={(e) => setReturnDate(e.target.value)}
-                          className="font-bold text-primary font-sans bg-transparent border-none p-0 w-full focus:ring-0 leading-tight focus:outline-none"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Action button matching ticket selections */}
-                    <button
-                      onClick={() => {
-                        addNotification(
-                          'Tickets Queried',
-                          `Successfully validated 34 optimal active schedules for ${fromAirport} ➔ ${toAirport}`,
-                          'success'
-                        );
-                      }}
-                      className="bg-primary-container text-surface-container-lowest font-mono font-extrabold py-3.5 rounded-xl text-xs tracking-wider uppercase transition-all shadow-[0_4px_16px_rgba(61,255,160,0.3)] hover:brightness-110 active:scale-[0.98] flex items-center justify-center gap-1.5"
-                    >
-                      <Ticket className="w-4 h-4" /> Search Ticket (34)
-                    </button>
-
-                  </div>
-                </section>
+                <Suspense fallback={<div className="h-40 rounded-2xl glass-card flex items-center justify-center text-primary-container animate-pulse gap-2"><Sparkles className="w-5 h-5 animate-spin"/> Loading Search Module...</div>}>
+                  <FlightSearchWidget onResults={(results) => {
+                    setActiveFlights(results);
+                    if (results.length > 0) {
+                      setFromAirport(results[0].from);
+                      setToAirport(results[0].to);
+                      setActiveFlight(results[0]);
+                      setSimProgress(0);
+                      addNotification(
+                        'Tickets Queried',
+                        `Successfully fetched ${results.length} active schedules for ${results[0].from} ➔ ${results[0].to} via AviationStack/Amadeus.`,
+                        'success'
+                      );
+                    }
+                  }} />
+                </Suspense>
 
                 {/* Next Flight Card */}
                 <section className="glass-card rounded-[24px] overflow-hidden border border-outline-variant/20 p-5 bg-surface-container-low/20">
@@ -576,31 +525,33 @@ export default function App() {
               <div className="flex flex-col gap-gutter">
                 
                 {/* Visual Route tracking with progress simulation */}
-                <FlightTrackerMap
-                  flightNo={activeFlight.flightNo}
-                  fromCode={fromAirport}
-                  toCode={toAirport}
-                  departureTime={activeFlight.departureTime}
-                  arrivalTime={activeFlight.arrivalTime}
-                  distance={activeFlight.distance}
-                  progress={simProgress}
-                  isSimulating={isSimulating}
-                  onToggleSim={() => {
-                    setIsSimulating(!isSimulating);
-                    addNotification(
-                      isSimulating ? 'Simulation Paused' : 'Simulation Engaged',
-                      isSimulating 
-                        ? 'Aeroline tracking is paused.' 
-                        : `Avionics dynamic flight track simulation running live for route ${fromAirport} ➔ ${toAirport}!`,
-                      isSimulating ? 'warn' : 'success'
-                    );
-                  }}
-                  onResetSim={() => {
-                    setSimProgress(0);
-                    setIsSimulating(false);
-                    addNotification('Simulation Reset', `Reset tracking milestones of ${activeFlight.flightNo} to runway.`, 'info');
-                  }}
-                />
+                <Suspense fallback={<div className="h-64 rounded-2xl glass-card flex items-center justify-center text-primary-container animate-pulse gap-2"><Sparkles className="w-5 h-5 animate-spin" /> Loading Module...</div>}>
+                  <FlightTrackerMap
+                    flightNo={activeFlight.flightNo}
+                    fromCode={fromAirport}
+                    toCode={toAirport}
+                    departureTime={activeFlight.departureTime}
+                    arrivalTime={activeFlight.arrivalTime}
+                    distance={activeFlight.distance}
+                    progress={simProgress}
+                    isSimulating={isSimulating}
+                    onToggleSim={() => {
+                      setIsSimulating(!isSimulating);
+                      addNotification(
+                        isSimulating ? 'Simulation Paused' : 'Simulation Engaged',
+                        isSimulating 
+                          ? 'Aeroline tracking is paused.' 
+                          : `Avionics dynamic flight track simulation running live for route ${fromAirport} ➔ ${toAirport}!`,
+                        isSimulating ? 'warn' : 'success'
+                      );
+                    }}
+                    onResetSim={() => {
+                      setSimProgress(0);
+                      setIsSimulating(false);
+                      addNotification('Simulation Reset', `Reset tracking milestones of ${activeFlight.flightNo} to runway.`, 'info');
+                    }}
+                  />
+                </Suspense>
 
                 {/* Hot Deals Comparison Propositions Table */}
                 <section className="glass-card rounded-[24px] overflow-hidden border border-outline-variant/20 bg-surface-container-low/10">
@@ -665,13 +616,15 @@ export default function App() {
               <div className="flex flex-col gap-6">
                 
                 {/* Fuselage Seat picker card */}
-                <CabinSeatSelector
-                  selectedClass={selectedClass}
-                  onChangeClass={setSelectedClass}
-                  selectedSeats={selectedSeats}
-                  onToggleSeat={handleToggleSeat}
-                  basePrice={activeFlight.basePrice}
-                />
+                <Suspense fallback={<div className="h-64 rounded-2xl glass-card flex items-center justify-center text-primary-container animate-pulse gap-2"><Sparkles className="w-5 h-5 animate-spin"/> Loading Module...</div>}>
+                  <CabinSeatSelector
+                    selectedClass={selectedClass}
+                    onChangeClass={setSelectedClass}
+                    selectedSeats={selectedSeats}
+                    onToggleSeat={handleToggleSeat}
+                    basePrice={activeFlight.basePrice}
+                  />
+                </Suspense>
 
                 {/* Pricing display summary and Checkout triggers */}
                 <div className="glass-card rounded-2xl p-5 border border-primary-container/20 flex flex-col gap-4">
@@ -984,7 +937,9 @@ export default function App() {
 
               {/* Central Big conversational panel */}
               <div className="md:col-span-2">
-                <AiCopilot currentFlightContext={`Route: ${fromAirport} to ${toAirport}. Flight carrier: ${activeFlight.flightNo} (${activeFlight.aircraft}). Cabin Class: ${selectedClass}. Selected seats: ${selectedSeats.join(', ') || 'None'}.`} />
+                <Suspense fallback={<div className="h-96 rounded-2xl glass-card flex flex-col items-center justify-center text-primary-container animate-pulse gap-2"><Sparkles className="w-8 h-8 animate-spin"/> Processing Secure Connection...</div>}>
+                  <AiCopilot currentFlightContext={`Route: ${fromAirport} to ${toAirport}. Flight carrier: ${activeFlight.flightNo} (${activeFlight.aircraft}). Cabin Class: ${selectedClass}. Selected seats: ${selectedSeats.join(', ') || 'None'}.`} />
+                </Suspense>
               </div>
 
             </div>
@@ -993,24 +948,25 @@ export default function App() {
 
       </main>
 
-      {/* 3. DOCK CHECKOUT MODAL OVERLAY */}
-      <CheckoutModal
-        isOpen={isCheckoutOpen}
-        onClose={() => setIsCheckoutOpen(false)}
-        flightNo={activeFlight.flightNo}
-        fromCity={AIRPORTS.find((a) => a.code === fromAirport)?.city || 'New York'}
-        toCity={AIRPORTS.find((a) => a.code === toAirport)?.city || 'Milan'}
-        fromCode={fromAirport}
-        toCode={toAirport}
-        departureTime={activeFlight.departureTime}
-        aircraft={activeFlight.aircraft}
-        gate={activeFlight.gate || 'A14'}
-        cabinClass={selectedClass}
-        selectedSeats={selectedSeats}
-        totalPrice={totalPrice}
-      />
+      <Suspense fallback={null}>
+        <CheckoutModal
+          isOpen={isCheckoutOpen}
+          onClose={() => setIsCheckoutOpen(false)}
+          flightNo={activeFlight.flightNo}
+          fromCity={AIRPORTS.find((a) => a.code === fromAirport)?.city || 'New York'}
+          toCity={AIRPORTS.find((a) => a.code === toAirport)?.city || 'Milan'}
+          fromCode={fromAirport}
+          toCode={toAirport}
+          departureTime={activeFlight.departureTime}
+          aircraft={activeFlight.aircraft}
+          gate={activeFlight.gate || 'A14'}
+          cabinClass={selectedClass}
+          selectedSeats={selectedSeats}
+          totalPrice={totalPrice}
+        />
+      </Suspense>
 
-      {/* 4. TACTICAL FOOTER AREA */}
+      {/* 5. TACTICAL FOOTER AREA */}
       <footer className="mt-20 border-t border-dashed border-secondary-container bg-surface-container-lowest w-full py-8 text-xs font-mono">
         <div className="flex flex-col md:flex-row justify-between items-center px-container-margin-desktop gap-4 mx-auto max-w-7xl">
           <div className="flex items-center gap-2">
@@ -1035,6 +991,15 @@ export default function App() {
           </div>
         </div>
       </footer>
+
+      {/* AUTHENTICATION OVERLAY MODAL */}
+      <Suspense fallback={null}>
+        <AuthModal 
+          isOpen={isAuthModalOpen} 
+          onClose={() => setIsAuthModalOpen(false)} 
+          onLoginSuccess={(userData) => setUser(userData)}
+        />
+      </Suspense>
     </div>
   );
 }

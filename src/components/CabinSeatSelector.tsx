@@ -1,222 +1,161 @@
-import React, { useMemo } from 'react';
-import { CabinClass, Seat } from '../types';
-import { generateSeatsForClass } from '../constants';
-import { motion } from 'motion/react';
-import { Check, X, ShieldAlert, BadgeInfo } from 'lucide-react';
+import React, { useState } from 'react';
+
+// Using dummy Seat type here if it's imported from types
+import { Seat } from '../types';
 
 interface CabinSeatSelectorProps {
-  selectedClass: CabinClass;
-  onChangeClass: (newClass: CabinClass) => void;
-  selectedSeats: string[];
-  onToggleSeat: (seatId: string) => void;
-  basePrice: number;
+  flightId: string;
+  onSeatSelect: (seats: string[]) => void;
 }
 
-export default function CabinSeatSelector({
-  selectedClass,
-  onChangeClass,
-  selectedSeats,
-  onToggleSeat,
-  basePrice,
-}: CabinSeatSelectorProps) {
-  // Generate seats grid based on selected class
-  const seatsList = useMemo(() => {
-    return generateSeatsForClass(selectedClass);
-  }, [selectedClass]);
+export default function CabinSeatSelector({ flightId, onSeatSelect }: CabinSeatSelectorProps) {
+  const [cabin, setCabin] = useState<'FIRST' | 'BUSINESS' | 'ECONOMY'>('BUSINESS');
+  const [selectedSeat, setSelectedSeat] = useState<string | null>(null);
 
-  // Dynamic ticket price multiplier
-  const classMultiplier = {
-    First: 1.8,
-    Business: 1.0,
-    Economy: 0.4,
-  }[selectedClass];
+  // Generate mock seats 5 rows
+  const rows = ['1', '2', '3', '4', '5'];
+  const columns = ['C', 'D', 'E'];
 
-  const singleSeatPrice = Math.round(basePrice * classMultiplier);
-  const totalBill = selectedSeats.length * singleSeatPrice;
-
-  // Split seats list into rows for structured layout
-  const seatRows = useMemo(() => {
-    const rowsMap: { [key: string]: Seat[] } = {};
-    seatsList.forEach((seat) => {
-      if (!rowsMap[seat.row]) {
-        rowsMap[seat.row] = [];
-      }
-      rowsMap[seat.row].push(seat);
-    });
-    return Object.entries(rowsMap);
-  }, [seatsList]);
+  const toggleSeat = (seatId: string) => {
+    setSelectedSeat(prev => prev === seatId ? null : seatId);
+    onSeatSelect(selectedSeat === seatId ? [] : [seatId]);
+  };
 
   return (
-    <section className="glass-card rounded-[24px] p-6 flex flex-col h-full bg-surface-container-low/40">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h3 className="text-lg font-bold font-sans text-primary tracking-wide uppercase">SELECT SEATS</h3>
-          <p className="text-xs text-on-surface-variant font-mono">DOCK: {selectedClass.toUpperCase()} CABIN</p>
-        </div>
-        <div className="flex items-center gap-1.5 bg-primary-container/10 px-2.5 py-1 rounded-full border border-primary-container/20">
-          <span className="w-1.5 h-1.5 rounded-full bg-primary-container animate-pulse shadow-[0_0_8px_#3dffa0]"></span>
-          <span className="text-[10px] uppercase font-mono tracking-wider font-bold text-primary-container">
-            Live Cabin
-          </span>
-        </div>
-      </div>
-
-      {/* Cabin Class Selection Selector Tabs */}
-      <div className="grid grid-cols-3 bg-surface rounded-xl p-1.5 mb-6 border border-outline-variant/30 font-mono text-xs">
-        {(['First', 'Business', 'Economy'] as CabinClass[]).map((tab) => {
-          const isActive = selectedClass === tab;
-          return (
-            <button
-              key={tab}
-              onClick={() => onChangeClass(tab)}
-              className={`py-2 px-1 rounded-lg font-semibold tracking-wider transition-all duration-300 ${
-                isActive
-                  ? 'bg-primary-container text-surface-container-lowest font-bold shadow-[0_0_12px_rgba(61,255,160,0.3)]'
-                  : 'text-on-surface-variant hover:text-primary hover:bg-surface-container-high/40'
-              }`}
-            >
-              {tab.toUpperCase()}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Airplane Cabin Visual Diagram Design */}
-      <div className="flex-1 bg-surface-container-lowest/80 rounded-2xl border border-outline-variant/30 p-4 flex justify-center items-start mb-6 relative overflow-y-auto max-h-[300px]">
-        {/* Fuselage layout guide container */}
-        <div className="w-full max-w-[260px] border-x-2 border-t-[42px] border-primary-container/10 rounded-t-[100px] p-4 flex flex-col gap-6 relative">
-          
-          {/* Plane Nose Up Pointer */}
-          <div className="absolute -top-7 left-1/2 -translate-x-1/2 text-primary-container/40 flex flex-col items-center">
-            <span className="text-[9px] font-mono tracking-widest font-bold">COCKPIT</span>
-            <span className="material-symbols-outlined text-sm animate-bounce">keyboard_double_arrow_up</span>
+    <div className="w-full bg-[#0a1a0f] border border-[#00ff88]/20 rounded-[24px] p-6 shadow-2xl relative font-mono text-white flex flex-col items-center">
+      {/* Decorative Grid */}
+      <div className="absolute inset-0 opacity-10 pointer-events-none rounded-[24px]" style={{ backgroundImage: 'radial-gradient(#00ff88 1px, transparent 1px)', backgroundSize: '16px 16px' }}></div>
+      
+      <div className="relative z-10 w-full flex flex-col items-center">
+        {/* HEADER */}
+        <div className="w-full flex justify-between items-start mb-6">
+          <div className="flex flex-col">
+            <h2 className="text-[18px] font-bold text-white tracking-widest uppercase">SELECT SEATS</h2>
+            <span className="text-[12px] text-[#00ff88] tracking-widest">DOCK: {cabin} CABIN</span>
           </div>
+          <div className="flex items-center gap-2 bg-[#00ff88]/10 px-3 py-1.5 rounded-full border border-[#00ff88]/20">
+            <div className="w-2 h-2 rounded-full bg-[#00ff88] animate-[pulse_1.5s_ease-in-out_infinite]"></div>
+            <span className="text-[10px] text-[#00ff88] font-bold tracking-widest">LIVE CABIN</span>
+          </div>
+        </div>
 
-          <div className="flex flex-col gap-5 pt-4">
-            {seatRows.map(([rowName, rowSeats]) => (
-              <div key={rowName} className="flex flex-col gap-1">
-                {/* Row Letter Tag */}
-                <div className="text-[10px] text-center text-primary-container/50 font-mono font-bold">{rowName} Row</div>
-                
-                {/* Seat Columns Layout grid */}
-                <div className="flex justify-between items-center gap-1.5 px-1">
-                  {/* Left row cluster */}
-                  <div className="flex gap-1.5">
-                    {rowSeats.slice(0, Math.ceil(rowSeats.length / 2)).map((seat) => {
-                      const isSelected = selectedSeats.includes(seat.id);
+        {/* CABIN TOGGLE */}
+        <div className="w-full flex mb-8 border border-[#00ff88]/30 rounded-lg overflow-hidden bg-[#0a1a0f]">
+          {['FIRST', 'BUSINESS', 'ECONOMY'].map((cb) => (
+            <button
+              key={cb}
+              onClick={() => setCabin(cb as any)}
+              className={`flex-1 py-3 text-[12px] font-bold tracking-wider transition-colors outline-none
+                ${cabin === cb ? 'bg-[#00ff88] text-[#0a1a0f]' : 'bg-transparent text-[#00ff88]/70 hover:bg-[#00ff88]/10'}
+              `}
+            >
+              {cb}
+            </button>
+          ))}
+        </div>
+
+        {/* SVG SILHOUETTE + SEATS */}
+        <div className="relative w-full flex justify-center mb-6">
+          <div className="relative w-[300px] h-[360px] flex flex-col items-center justify-center p-4">
+            {/* Plane SVG Shape Background */}
+            <div className="absolute inset-0 pointer-events-none text-[#00ff88]/20" style={{ zIndex: 0 }}>
+              <svg className="w-full h-full drop-shadow-[0_0_20px_rgba(0,255,136,0.1)]" preserveAspectRatio="none" viewBox="0 0 300 360">
+                 {/* Fill background inside fuselage for aesthetic */}
+                 <path d="M 150 0 C 70 0, 10 60, 10 120 L 10 360 L 290 360 L 290 120 C 290 60, 230 0, 150 0 Z" fill="#ffffff" fillOpacity="0.02" />
+                 
+                 {/* Cockpit curve */}
+                 <path d="M 150 0 C 70 0, 10 60, 10 120" fill="none" stroke="currentColor" strokeWidth="4" />
+                 <path d="M 150 0 C 230 0, 290 60, 290 120" fill="none" stroke="currentColor" strokeWidth="4" />
+                 
+                 {/* Fuselage straight lines */}
+                 <line x1="10" y1="120" x2="10" y2="360" stroke="currentColor" strokeWidth="4" />
+                 <line x1="290" y1="120" x2="290" y2="360" stroke="currentColor" strokeWidth="4" />
+                 
+                 {/* Cross line at top of cockpit */}
+                 <path d="M 80 40 Q 150 20 220 40" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="4 4" />
+              </svg>
+              
+              <div className="absolute top-10 left-1/2 -translate-x-1/2 flex flex-col items-center">
+                 <span className="text-[10px] text-[#00ff88]/50 font-bold tracking-[0.3em] uppercase">COCKPIT</span>
+              </div>
+            </div>
+
+            {/* Seat grid content */}
+            <div className="relative z-10 mt-16 w-full flex flex-col gap-4 px-[60px]">
+              {rows.map(row => (
+                <div key={row} className="flex justify-between items-center w-full">
+                  {/* Left group - Col C */}
+                  <div className="flex">
+                    {(() => {
+                      const id = row + columns[0]; // C
+                      const isOccupied = id === '2C' || id === '4C';
+                      const isSelected = selectedSeat === id;
                       return (
                         <button
-                          key={seat.id}
-                          disabled={seat.isOccupied}
-                          onClick={() => onToggleSeat(seat.id)}
-                          className={`w-7 h-7 rounded text-[10px] font-mono font-bold flex items-center justify-center transition-all ${
-                            seat.isOccupied
-                              ? 'bg-surface-container-highest/60 text-on-surface-variant/30 cursor-not-allowed border border-outline-variant/20'
-                              : isSelected
-                              ? 'bg-primary-container/20 border-2 border-primary-container text-primary-container shadow-[0_0_10px_rgba(61,255,160,0.3)]'
-                              : 'border border-primary-container/30 hover:border-primary-container/80 text-on-surface-variant hover:text-primary cursor-pointer'
-                          }`}
-                          title={`Seat ${seat.id} (${seat.class} Cabin)`}
+                          disabled={isOccupied}
+                          onClick={() => toggleSeat(id)}
+                          className={`w-[28px] h-[28px] rounded flex items-center justify-center text-[10px] font-bold transition-all outline-none
+                            ${isOccupied ? 'bg-white/10 text-white/30 border border-white/5 cursor-not-allowed' : 
+                              isSelected ? 'bg-[#00ff88] text-[#0a1a0f] shadow-[0_0_10px_#00ff88] outline outline-2 outline-[#00ff88] outline-offset-1 z-10' : 
+                              'border border-[#00ff88]/50 text-[#00ff88] hover:bg-[#00ff88]/20 hover:border-[#00ff88]'}
+                          `}
                         >
-                          {seat.isOccupied ? (
-                            <X className="w-3 h-3 stroke-2 opacity-50" />
-                          ) : isSelected ? (
-                            <Check className="w-3 h-3 stroke-[3]" />
-                          ) : (
-                            seat.number
-                          )}
+                          {isOccupied ? 'X' : id}
                         </button>
-                      );
-                    })}
+                      )
+                    })()}
                   </div>
 
-                  {/* Fuselage central aisle spacer */}
-                  <div className="w-4 h-5 border-x border-dashed border-outline-variant/30 flex items-center justify-center">
-                    <span className="text-[7px] text-on-surface-variant/30 font-mono">AISLE</span>
+                  {/* Aisle */}
+                  <div className="flex-1 flex justify-center items-center relative">
+                    <div className="h-[28px] w-px bg-[#00ff88]/20 border-r border-dashed border-[#00ff88]/30"></div>
                   </div>
 
-                  {/* Right row cluster */}
-                  <div className="flex gap-1.5">
-                    {rowSeats.slice(Math.ceil(rowSeats.length / 2)).map((seat) => {
-                      const isSelected = selectedSeats.includes(seat.id);
+                  {/* Right group - Cols D, E */}
+                  <div className="flex gap-2">
+                    {[columns[1], columns[2]].map(col => {
+                      const id = row + col;
+                      const isOccupied = id === '1D' || id === '5E';
+                      const isSelected = selectedSeat === id;
+
                       return (
                         <button
-                          key={seat.id}
-                          disabled={seat.isOccupied}
-                          onClick={() => onToggleSeat(seat.id)}
-                          className={`w-7 h-7 rounded text-[10px] font-mono font-bold flex items-center justify-center transition-all ${
-                            seat.isOccupied
-                              ? 'bg-surface-container-highest/60 text-on-surface-variant/30 cursor-not-allowed border border-outline-variant/20'
-                              : isSelected
-                              ? 'bg-primary-container/20 border-2 border-primary-container text-primary-container shadow-[0_0_10px_rgba(61,255,160,0.3)]'
-                              : 'border border-primary-container/30 hover:border-primary-container/80 text-on-surface-variant hover:text-primary cursor-pointer'
-                          }`}
-                          title={`Seat ${seat.id} (${seat.class} Cabin)`}
+                          key={id}
+                          disabled={isOccupied}
+                          onClick={() => toggleSeat(id)}
+                          className={`w-[28px] h-[28px] rounded flex items-center justify-center text-[10px] font-bold transition-all outline-none
+                            ${isOccupied ? 'bg-white/10 text-white/30 border border-white/5 cursor-not-allowed' : 
+                              isSelected ? 'bg-[#00ff88] text-[#0a1a0f] shadow-[0_0_10px_#00ff88] outline outline-2 outline-[#00ff88] outline-offset-1 z-10' : 
+                              'border border-[#00ff88]/50 text-[#00ff88] hover:bg-[#00ff88]/20 hover:border-[#00ff88]'}
+                          `}
                         >
-                          {seat.isOccupied ? (
-                            <X className="w-3 h-3 stroke-2 opacity-50" />
-                          ) : isSelected ? (
-                            <Check className="w-3 h-3 stroke-[3]" />
-                          ) : (
-                            seat.number
-                          )}
+                          {isOccupied ? 'X' : id}
                         </button>
-                      );
+                      )
                     })}
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-
-        </div>
-      </div>
-
-      {/* Seat Interactive Indicators Legend */}
-      <div className="grid grid-cols-3 gap-1 bg-surface-container-low/80 p-2.5 rounded-xl border border-outline-variant/20 text-[10px] font-mono font-semibold text-center mb-6">
-        <div className="flex items-center justify-center gap-1.5">
-          <div className="w-3 h-3 rounded bg-primary-container/25 border border-primary-container"></div>
-          <span className="text-on-surface">SELECTED</span>
-        </div>
-        <div className="flex items-center justify-center gap-1.5">
-          <div className="w-3 h-3 rounded border border-primary-container/45"></div>
-          <span className="text-on-surface-variant">AVAILABLE</span>
-        </div>
-        <div className="flex items-center justify-center gap-1.5">
-          <div className="w-3 h-3 rounded bg-surface-container-highest/60 flex items-center justify-center text-on-surface-variant/40 border border-outline-variant/30">
-            <X className="w-2.5 h-2.5" />
-          </div>
-          <span className="text-on-surface-variant/70">OCCUPIED</span>
-        </div>
-      </div>
-
-      {/* Dynamically Calibrated Summary Panel */}
-      <div className="bg-surface p-3.5 rounded-xl border border-secondary-container/40 flex justify-between items-center text-xs">
-        <div>
-          <div className="font-semibold text-primary">{selectedSeats.length} Seated • {selectedClass}</div>
-          <div className="text-on-surface-variant text-[11px] font-mono">
-            {selectedSeats.length > 0 
-              ? `Seats: ${selectedSeats.join(', ')}` 
-              : 'Please click active tags upstairs'}
+              ))}
+            </div>
           </div>
         </div>
-        <div className="text-right">
-          <span className="text-[10px] text-on-surface-variant block uppercase tracking-widest leading-none mb-1">
-            Price / Seat
-          </span>
-          <span className="text-sm font-bold font-mono text-primary-container">
-            ${singleSeatPrice}
-          </span>
+
+        {/* LEGEND */}
+        <div className="w-full flex justify-center gap-6 pt-6 mt-auto border-t border-[#00ff88]/10 text-[10px] font-bold tracking-widest text-[#00ff88]/70">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-[#00ff88] shadow-[0_0_6px_#00ff88] rounded-[2px]"></div>
+            <span>SELECTED</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 border border-[#00ff88] rounded-[2px]"></div>
+            <span>AVAILABLE</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-white/10 border border-white/5 flex items-center justify-center text-[6px] text-white/40">X</div>
+            <span>OCCUPIED</span>
+          </div>
         </div>
       </div>
-
-      {/* Alert constraint check when seat list is empty */}
-      {selectedSeats.length === 0 && (
-        <div className="mt-3 flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-300 text-[10px] font-mono">
-          <BadgeInfo className="w-3.5 h-3.5 flex-shrink-0" />
-          <span>Select at least 1 cabin seat to unlock checkout booking block.</span>
-        </div>
-      )}
-    </section>
+    </div>
   );
 }

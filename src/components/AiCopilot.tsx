@@ -1,13 +1,35 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, ReactNode } from 'react';
 import { askCoPilot } from '../services/geminiService';
-import { Send, Sparkles, User, Terminal, Loader2, Compass, AlertCircle } from 'lucide-react';
+import { Send, Sparkles, User, Terminal, Loader2, Compass, AlertCircle, Calendar } from 'lucide-react';
+import { motion } from 'motion/react';
 
 interface ChatMessage {
   id: string;
   sender: 'user' | 'copilot';
   text: string;
   timestamp: string;
+  isTyping?: boolean;
+  richCard?: ReactNode;
 }
+
+const TypewriterText = ({ text, onComplete }: { text: string; onComplete?: () => void }) => {
+  const [displayedText, setDisplayedText] = useState('');
+
+  useEffect(() => {
+    let index = 0;
+    const interval = setInterval(() => {
+      setDisplayedText((prev) => prev + text.charAt(index));
+      index++;
+      if (index >= text.length) {
+        clearInterval(interval);
+        if (onComplete) onComplete();
+      }
+    }, 15); // ms per char
+    return () => clearInterval(interval);
+  }, [text, onComplete]);
+
+  return <span>{displayedText}</span>;
+};
 
 interface AiCopilotProps {
   currentFlightContext?: string;
@@ -52,11 +74,26 @@ export default function AiCopilot({ currentFlightContext }: AiCopilotProps) {
 
     try {
       const gptResponse = await askCoPilot(textToSend, currentFlightContext);
+      let richCard: ReactNode = undefined;
+      
+      // Simulated Rich Card generation based on intent analysis
+      if (textToSend.toLowerCase().includes('buscar') || textToSend.toLowerCase().includes('flight')) {
+        richCard = (
+          <div className="mt-3 p-3 bg-primary-container/10 border border-primary-container/30 rounded-xl font-mono text-[10px]">
+             <div className="font-bold text-primary-container mb-2 flex items-center gap-1"><Calendar className="w-4 h-4"/> Suggested Itineraries</div>
+             <div className="p-2 border border-outline-variant/30 rounded bg-surface mb-2 hover:border-primary-container cursor-pointer transition-all">VX 402 - JFK to LHR - $450</div>
+             <div className="p-2 border border-outline-variant/30 rounded bg-surface hover:border-primary-container cursor-pointer transition-all">DL 119 - JFK to CDG - $510</div>
+          </div>
+        );
+      }
+
       const pilotMsg: ChatMessage = {
         id: `pilot-${Date.now()}`,
         sender: 'copilot',
         text: gptResponse,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' Z'
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' Z',
+        isTyping: true,
+        richCard
       };
       setMessages((prev) => [...prev, pilotMsg]);
     } catch (e) {
@@ -64,7 +101,8 @@ export default function AiCopilot({ currentFlightContext }: AiCopilotProps) {
         id: `error-${Date.now()}`,
         sender: 'copilot',
         text: '⚠️ System Error: Connection to oceanic flight grid disrupted. Please retry query shortly.',
-        timestamp: 'ERR'
+        timestamp: 'ERR',
+        isTyping: true
       };
       setMessages((prev) => [...prev, errorMsg]);
     } finally {
@@ -80,9 +118,10 @@ export default function AiCopilot({ currentFlightContext }: AiCopilotProps) {
 
   // Premade fast assistant chip templates
   const CHIPS = [
-    { label: '✈️ JFK ➔ Tokyo Plan', query: 'Generate a flight plan from JFK to Tokyo on Emirates' },
-    { label: '🧳 Luggage & Upgrade Limits', query: 'Calculate business class baggage limits and upgrade options' },
-    { label: '🧭 Atlantic Turbulences', query: 'Explain turbulences over the North Atlantic route and jet streams' }
+    { label: '✈️ Buscar voo', query: 'Quero buscar os melhores voos saindo de JFK para LHR' },
+    { label: '💰 Ver promoções', query: 'Quais as melhores promoções de passagem hoje?' },
+    { label: '🎧 Suporte', query: 'Preciso de ajuda do suporte técnico' },
+    { label: '🧳 Minha reserva', query: 'Gostaria de ver as opções e limites de bagagem' }
   ];
 
   return (
@@ -136,7 +175,18 @@ export default function AiCopilot({ currentFlightContext }: AiCopilotProps) {
                   ? 'bg-primary-container text-surface-container-lowest font-semibold font-sans rounded-tr-none'
                   : 'bg-surface-container-high/70 border border-outline-variant/20 rounded-tl-none text-on-surface'
               }`}>
-                {msg.text}
+                {msg.sender === 'copilot' && msg.id !== 'init' && msg.isTyping !== false ? (
+                  <TypewriterText text={msg.text} onComplete={() => {
+                     setMessages(prev => prev.map(m => m.id === msg.id ? {...m, isTyping: false} : m));
+                  }}/>
+                ) : (
+                  msg.text
+                )}
+                {msg.richCard && msg.isTyping === false && (
+                  <motion.div initial={{opacity: 0, y: 10}} animate={{opacity: 1, y: 0}}>
+                    {msg.richCard}
+                  </motion.div>
+                )}
               </div>
               <span className="text-[9px] text-on-surface-variant/70 font-mono tracking-tighter block mt-0.5">
                 {msg.timestamp}
