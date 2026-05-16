@@ -1,0 +1,8 @@
+{
+  "name": "Velox Aero-Tech Dashboard",
+  "description": "A high-velocity premium dark-mode flight operations & booking platform featuring live interactive route progress simulation, airport search completions, seat-selection with direct ticket calculation, and an AI Travel Pilot assistant.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
